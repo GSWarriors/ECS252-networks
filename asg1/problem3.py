@@ -2,43 +2,25 @@ import matplotlib.pyplot as plt
 import math
 
 
-
 def main():
-    #n is amount of users
-    #p is prob that node is active
 
-    #we have congestion when number of users is greater than 1mb/200kb,
-    #max capacity without congestion is 5
-    #which is 6
-
-
-    max_users = 100
+    M = 0
+    N = 20
     p = 0.2
-    x_coords = []
-    y_coords = []
+    #math.comb(n, k)
+    prob = 0
+    i = 1
 
-    for N in range(0, max_users):
+    while prob < 0.1:
+        prob += math.comb(N, i)*pow(p, i)*pow(1 - p, N - i)
+        i += 1
+        print("prob is now: " + str(prob))
 
-        if N <= 5:
-            x_coords.append(N)
-            y_coords.append(0)
-
-        else:
-            #math.comb(n, k)
-            prob = 0
-            for i in range(6, N):
-                prob += math.comb(N, i)*pow(0.2, i)*pow(0.8, N - i)
-
-            x_coords.append(N)
-            y_coords.append(prob)
-
-    print("x coords: " + str(x_coords))
-    print("y coords: " + str(y_coords))
-
-    plt.scatter(x_coords, y_coords)
-    plt.show()
+    print("min users to calculate congestion: " + str(i))
     #plot as a function of n, not a range inside N
 
+    M = (i - 1)*(200000)
 
+    print("M is: " + str(M) + " bits per second")
 
 main()
