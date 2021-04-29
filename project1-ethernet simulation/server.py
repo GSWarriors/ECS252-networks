@@ -1,52 +1,95 @@
-# simple (non-concurrent) TCP server example
+
 from socket import *
 import os 
 import signal
+import simpy
+import random
+
+
+class G:
+    RANDOM_SEED = 33
+    SIM_TIME = 100000
+    MU = 1
+    LONG_SLEEP_TIMER = 1000000000
 
 
 
-def new_host(i, listeningSocket):
-    pid = os.fork()
-  
+class Server_Process(object):
+    def __init__(self, env):
+        self.env = env
+        self.queue = []  # the buffer
+        self.server_busy = False 
 
-    if pid > 0:
-        print("parent process, returning back to loop")
-        return pid
-    else:
-        print("created new child process with id: " + str(os.getpid()))
+        for i in range(0, 10):
+            self.action = env.process(self.new_host())
+
+
+    def new_host(self):
         while 1:
-            child_connectionsocket, addr = listeningSocket.accept()
-            #handle the incoming request
-            print("handling incoming request from client with host: " + str(i))
+            try: 
+                print("yielding")
+                yield self.env.timeout(G.LONG_SLEEP_TIMER)
 
-            #close child connection after its handled       
-            child_connectionsocket.close()
+            except simpy.Interrupt:
+                print("process " + str(os.getpid()) + " has been interrupted by packet")
+                
+
+
+
 
 
 
 
 
 def main():
-    serverPort = 12000
-    listeningSocket = socket(AF_INET, SOCK_STREAM)
-    print(listeningSocket)
-    listeningSocket.bind(('', serverPort))
-    listeningSocket.listen(1)
-    print('Server ready, socket', listeningSocket.fileno(), 'listening on localhost :', serverPort)
-
+ 
     num_hosts = 30
 
-    #don't need to have parent in while loop, just needs to sleep.
-    #the preforked children handle the connections
+    for arrival_rate in [0.5]:
+        env = simpy.Environment()
+        server_process = Server_Process(env)
+        env.run(until=G.SIM_TIME)
 
-    for i in range(0, num_hosts):
-        new_host(i, listeningSocket)
-
+        
+        #arrival = Arrival_Process(env, arrival_rate, server, action)
     signal.pause()
 
 
 
 main()
+
+
+
+
+
+
+
+"""class Arrival_Process(object): 
+    def __init__(self, env, arrival_rate, server_process):
+        
+        self.env = env
+        self.arrival_rate = arrival_rate
+        self.server_process = server_process
+        self.action = env.process(self.run())
+    
+    def run(self):
+        while True:
+             # Infinite loop for generating packets
+            yield self.env.timeout(random.expovariate(self.arrival_rate))
+
+            if self.server_process.server_busy == False:
+                self.server_process.server_busy = True
+                self.server_process.action.interrupt()
+
+                print("new client arriving")
+                print()
+
+                serverName = 'localhost'
+                serverPort = 12010
+                clientSocket = socket(AF_INET, SOCK_STREAM)
+                clientSocket.connect((serverName, serverPort))
+                clientSocket.close()"""
+
 
 
 
