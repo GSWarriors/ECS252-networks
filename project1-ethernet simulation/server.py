@@ -20,15 +20,16 @@ class Server_Process(object):
 
         if not called_before:
             self.env = env
-            self.queue = []     #the buffer 
             self.server_busy = False 
-            self.processes = []
+            #self.processes = []
+            self.process_dict = {}
 
             for i in range(0, 10):
                 self.action = env.process(self.new_host(i))
-                self.processes.append(self.action)
+                #self.processes.append(self.action)
+                self.process_dict[i] = [self.action, []]
             
-            print("processes list: " + str(self.processes))
+            print("processes dict: " + str(self.process_dict))
 
         self.called_before = True 
 
@@ -42,8 +43,21 @@ class Server_Process(object):
                 yield self.env.timeout(G.LONG_SLEEP_TIMER)
 
             except simpy.Interrupt:
+
                 print("process " + str(i) + " has been interrupted by packet")
                 print("servicing packet")
+
+                #queue for current process
+                queue = self.process_dict[i][1]
+                
+                while len(queue) > 0:
+
+                    packet = queue.pop(0)
+                    print("the packet number: " + str(packet.identifier))
+                    print("the arrival time: " + str(packet.arrival_time))
+                    print()
+                
+              
                 
 
 
@@ -53,27 +67,31 @@ class Arrival_Process(object):
         self.env = env
         self.arrival_rate = arrival_rate
         self.server_process = server_process
+        self.packet_number = 0
         self.action = env.process(self.run())
     
     def run(self):
-        #count = 10
         for i in range(0, 10):
             yield self.env.timeout(random.expovariate(self.arrival_rate))
-            self.server_process.processes[i].interrupt()
+
+            #create and enqueue new packet
+            self.packet_number += 1
+            arrival_time = self.env.now  
+            new_packet = Packet(self.packet_number,arrival_time)
+
+            self.server_process.process_dict[i][1].append(new_packet)
+            print("the queue size for process " + str(i) + " is now: " + str(len(self.server_process.process_dict[i][1])))
+            print()
+            self.server_process.process_dict[i][0].interrupt()
 
 
-        """while True:
-             # Infinite loop for generating packets
-            yield self.env.timeout(random.expovariate(self.arrival_rate))
+           
 
-            if self.server_process.server_busy == False:
-                #self.server_process.server_busy = True
-                self.server_process.action.interrupt()
 
-                print("new client arriving")
-                print()"""
-            
-
+class Packet:
+    def __init__(self, identifier, arrival_time):
+        self.identifier = identifier
+        self.arrival_time = arrival_time
 
 
 
@@ -99,36 +117,6 @@ def main():
 main()
 
 
-
-
-
-
-
-"""class Arrival_Process(object): 
-    def __init__(self, env, arrival_rate, server_process):
-        
-        self.env = env
-        self.arrival_rate = arrival_rate
-        self.server_process = server_process
-        self.action = env.process(self.run())
-    
-    def run(self):
-        while True:
-             # Infinite loop for generating packets
-            yield self.env.timeout(random.expovariate(self.arrival_rate))
-
-            if self.server_process.server_busy == False:
-                self.server_process.server_busy = True
-                self.server_process.action.interrupt()
-
-                print("new client arriving")
-                print()
-
-                serverName = 'localhost'
-                serverPort = 12010
-                clientSocket = socket(AF_INET, SOCK_STREAM)
-                clientSocket.connect((serverName, serverPort))
-                clientSocket.close()"""
 
 
 
