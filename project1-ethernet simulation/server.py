@@ -1,6 +1,6 @@
 
 from socket import *
-import os 
+import os
 import signal
 import simpy
 import random
@@ -16,7 +16,7 @@ class G:
 
 class Server_Process(object):
     def __init__(self, env, called_before):
-       
+
 
         if not called_before:
             self.env = env
@@ -25,19 +25,19 @@ class Server_Process(object):
 
             for i in range(0, 30):
                 self.action = env.process(self.new_host(i))
-                self.server_busy = False 
+                self.server_busy = False
                 #self.processes.append(self.action)
                 self.process_dict[i] = [self.action, [], self.server_busy]
-            
+
             print("processes dict: " + str(self.process_dict))
 
-        self.called_before = True 
+        self.called_before = True
 
 
 
     def new_host(self, i):
         while 1:
-            try: 
+            try:
                 print("yielding process: " + str(i))
                 print()
                 yield self.env.timeout(G.LONG_SLEEP_TIMER)
@@ -49,7 +49,7 @@ class Server_Process(object):
                 #queue for current process
                 queue = self.process_dict[i][1]
                 server_busy = self.process_dict[i][2]
-                
+
                 while len(queue) > 0:
 
                     packet = queue.pop(0)
@@ -57,24 +57,24 @@ class Server_Process(object):
                     print("the arrival time: " + str(packet.arrival_time))
                     print()
                     yield self.env.timeout(random.expovariate(G.MU))
-                
+
                 #we have emptied the queue for this process
-                server_busy = False 
+                server_busy = False
                 print("queue emptied for process: " + str(i))
-                
-              
-                
 
 
-class Arrival_Process(object): 
+
+
+
+class Arrival_Process(object):
     def __init__(self, env, arrival_rate, server_process):
-        
+
         self.env = env
         self.arrival_rate = arrival_rate
         self.server_process = server_process
         self.packet_number = 0
         self.action = env.process(self.run())
-    
+
     def run(self):
 
         count = 0
@@ -89,16 +89,16 @@ class Arrival_Process(object):
 
                 #create and enqueue new packet
                 self.packet_number += 1
-                arrival_time = self.env.now  
+                arrival_time = self.env.now
                 new_packet = Packet(self.packet_number,arrival_time)
 
                 curr_queue.append(new_packet)
                 print("the queue size for process " + str(i) + " is now: " + str(len(curr_queue)))
                 print()
 
-                #check whether server busy to start transmitting packets 
+                #check whether server busy to start transmitting packets
                 if curr_server_busy == False:
-                    curr_server_busy = True 
+                    curr_server_busy = True
                     curr_process.interrupt()
 
             count += 1
@@ -106,7 +106,7 @@ class Arrival_Process(object):
             if count == 10:
                 break
 
-            
+
 
 
 class Packet:
@@ -119,9 +119,9 @@ class Packet:
 
 
 def main():
- 
+
     num_hosts = 30
-    called_before = False 
+    called_before = False
 
     for arrival_rate in [0.5]:
         env = simpy.Environment()
@@ -136,7 +136,3 @@ def main():
 
 
 main()
-
-
-
-
