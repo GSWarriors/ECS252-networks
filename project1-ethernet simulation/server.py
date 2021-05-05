@@ -10,9 +10,10 @@ import math
 
 class G:
     RANDOM_SEED = 33
-    SIM_TIME = 1000
+    SIM_TIME = 50
     MU = 1
     LONG_SLEEP_TIMER = 1000000000
+
 
 
 
@@ -24,7 +25,7 @@ class Server_Process(object):
             self.queue_dict = {}
             self.server_busy = False 
             
-            for i in range(0, 2):
+            for i in range(0, 30):
                 self.queue_dict[i] = []
 
             self.called_before = True
@@ -36,47 +37,42 @@ class Server_Process(object):
     def run(self):
 
         while 1:
-            try:
-                print("yielding server")
+
+            print("yielding server")
+            print()
+
+            yield self.env.timeout(1)
+
+            #except simpy.Interrupt:
+            print("servicing packet")
+            print("current time: " + str(self.env.now))
+
+            for key, val in self.queue_dict.items():
+                print("process: " + str(key))
+                for i in range(0, len(val)):
+                    print("packet: " + str(val[i].arrival_time))
+                
                 print()
 
-                yield self.env.timeout(1)
-
-            except simpy.Interrupt:
-                print("server has been interrupted by packet")
-                print("servicing packet")
-
-                for key, val in self.queue_dict.items():
-                    print("process: " + str(key))
-                    for i in range(0, len(val)):
-                        print("packet: " + str(val[i].arrival_time))
-                    
-                    print()
 
 
+            #queue for current process
+            """while len(queue) > 0:
+
+                packet = queue.pop(0)
+                print("the packet number: " + str(packet.identifier))
+                print("the arrival time: " + str(packet.arrival_time))
+                print()
+                
+                yield self.env.timeout(random.expovariate(G.MU))
+
+            #we have emptied the queue for this process
+            server_busy = False
+            print("queue emptied for process: " + str(i))"""
 
 
-                #queue for current process
-                """queue = self.process_dict[i][1]
-                server_busy = self.process_dict[i][2]
-
-                while len(queue) > 0:
-
-                    packet = queue.pop(0)
-                    print("the packet number: " + str(packet.identifier))
-                    print("the arrival time: " + str(packet.arrival_time))
-                    print()
-                    
-                    yield self.env.timeout(random.expovariate(G.MU))
-
-                #we have emptied the queue for this process
-                server_busy = False
-                print("queue emptied for process: " + str(i))"""
-
-                self.server_busy = False 
-
-
-
+            self.server_busy = False 
+                
 
 
 class Arrival_Process(object):
@@ -91,7 +87,7 @@ class Arrival_Process(object):
             #self.arrival_dict = {}
 
 
-            for i in range(0, 2):
+            for i in range(0, 30):
                 self.action = env.process(self.run(i))
 
         self.called_before = True
@@ -103,7 +99,6 @@ class Arrival_Process(object):
         while True:
             yield self.env.timeout(random.expovariate(self.arrival_rate))
 
-            #curr_queue = self.arrival_dict[i]
             #create and enqueue new packet
             self.packet_number += 1
             arrival_time = self.env.now
@@ -123,7 +118,7 @@ class Arrival_Process(object):
                 self.server_process.server_busy = True
                 #wait for some time in order to let the process yield again
                 #yield self.env.timeout(15)
-                self.server_process.action.interrupt()
+                #self.server_process.action.interrupt()
                 
 
 
@@ -145,7 +140,7 @@ def main():
     called_before = False
     arrival_called_before = False 
 
-    for arrival_rate in [0.01]:
+    for arrival_rate in [0.5]:
         env = simpy.Environment()
         server_process = Server_Process(env, called_before)
 
