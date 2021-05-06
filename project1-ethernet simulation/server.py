@@ -10,7 +10,7 @@ import math
 
 class G:
     RANDOM_SEED = 33
-    SIM_TIME = 50
+    SIM_TIME = 80
     MU = 1
     LONG_SLEEP_TIMER = 1000000000
 
@@ -22,11 +22,11 @@ class Server_Process(object):
 
         if not called_before:
             self.env = env
-            self.queue_dict = {}
+            self.process_dict = {}
             self.server_busy = False 
             
-            for i in range(0, 30):
-                self.queue_dict[i] = []
+            for i in range(0, 2):
+                self.process_dict[i] = [None, []]
 
             self.called_before = True
             #run the server here 
@@ -47,14 +47,14 @@ class Server_Process(object):
             print("servicing packet")
             print("current time: " + str(self.env.now))
 
-            for key, val in self.queue_dict.items():
+            for key, val in self.process_dict.items():
                 print("process: " + str(key))
-                for i in range(0, len(val)):
-                    print("packet: " + str(val[i].arrival_time))
+                print("process id: "+ str(val[0]))
                 
+                for packet in val[1]:
+                    print("arrival time: " + str(packet.arrival_time))
+
                 print()
-
-
 
             #queue for current process
             """while len(queue) > 0:
@@ -86,9 +86,9 @@ class Arrival_Process(object):
             #self.arrival_count = [0]*30
             #self.arrival_dict = {}
 
-
-            for i in range(0, 30):
+            for i in range(0, 2):
                 self.action = env.process(self.run(i))
+                self.server_process.process_dict[i][0] = self.action
 
         self.called_before = True
 
@@ -104,12 +104,12 @@ class Arrival_Process(object):
             arrival_time = self.env.now
             new_packet = Packet(self.packet_number,arrival_time)
             
-            if not self.server_process.queue_dict[i]:
-                self.server_process.queue_dict[i] = [new_packet]
+            if not self.server_process.process_dict[i][1]:
+                self.server_process.process_dict[i][1] = [new_packet]
             else:
-                self.server_process.queue_dict[i].append(new_packet)
+                self.server_process.process_dict[i][1].append(new_packet)
 
-            print("the queue size for process " + str(i) + " is now: " + str(len(self.server_process.queue_dict[i])))
+            print("the queue size for process " + str(i) + " is now: " + str(len(self.server_process.process_dict[i][1])))
             print()
 
 
@@ -117,8 +117,6 @@ class Arrival_Process(object):
             if self.server_process.server_busy == False:
                 self.server_process.server_busy = True
                 #wait for some time in order to let the process yield again
-                #yield self.env.timeout(15)
-                #self.server_process.action.interrupt()
                 
 
 
@@ -140,7 +138,7 @@ def main():
     called_before = False
     arrival_called_before = False 
 
-    for arrival_rate in [0.5]:
+    for arrival_rate in [0.09]:
         env = simpy.Environment()
         server_process = Server_Process(env, called_before)
 
