@@ -215,9 +215,33 @@ class Arrival_Process(object):
                     else:
                         self.server_process.process_dict[i][1].append(new_packet)
                 
-                #check whether server busy to start transmitting packets
-                if self.server_process.server_busy == False:
-                    self.server_process.server_busy = True
+                    #check whether server busy to start transmitting packets
+                    if self.server_process.server_busy == False:
+                        self.server_process.server_busy = True
+                else:
+                    #wait for next time slot to retransmit if not in threshold value
+                    while retransmit > 0.8:
+                        yield self.env.timeout(1)
+                        retransmit = random.uniform(0, 1)
+                    
+                    #once this loop is broken, then retransmit as usual - make this part into a function
+                    self.packet_number -= 1
+                    arrival_time = self.env.now
+                    new_packet = Packet(self.packet_number,arrival_time)
+                    print("multiple collision packet for process: " + str(i) + " has been resent with arrival time: " 
+                    + str(arrival_time))
+                    
+                    #add to queue again
+                    if not self.server_process.process_dict[i][1]:
+                        self.server_process.process_dict[i][1] = [new_packet]
+                    else:
+                        self.server_process.process_dict[i][1].append(new_packet)
+                
+                    #check whether server busy to start transmitting packets
+                    if self.server_process.server_busy == False:
+                        self.server_process.server_busy = True
+
+                        
 
 
 
