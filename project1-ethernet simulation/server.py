@@ -25,7 +25,7 @@ class Server_Process(object):
             self.process_dict = {}
             self.server_busy = False 
             
-            for i in range(0, 30):
+            for i in range(0, 5):
                 self.process_dict[i] = [None, []]
 
             self.called_before = True
@@ -50,8 +50,8 @@ class Server_Process(object):
                 
                 for packet in val[1]:
                     if self.env.now - packet.arrival_time <= 1:
-                        if val[0] not in interrupt_list:
-                            interrupt_list.append(val[0])
+                        if key not in interrupt_list:
+                            interrupt_list.append((key, val[0]))
                             print("a packet in process " + str(key) + " has just arrived, servicing.")
                             print("the arrival time: " + str(packet.arrival_time))
                             print()
@@ -62,21 +62,25 @@ class Server_Process(object):
             print("total packets that arrived in this interval: " + str(len(interrupt_list)))
             print()
 
+            #check for collision and remove that packet from queues of both processes
+
             if len(interrupt_list) >= 2:
                 for i in range(0, len(interrupt_list)):
-                    interrupt_list[i].interrupt()
+                    curr_queue = self.process_dict[interrupt_list[i][0]][1]
+
+                    removed_packet = curr_queue.pop()
+                    print("removed packet from process " + str(interrupt_list[i][0]) + " with arrival time: " + 
+                    str(removed_packet.arrival_time))
+
+                #for i in range(0, len(interrupt_list)):
+                    #interrupt_list[i][1].interrupt()
 
             
-    
-            """for key, val in self.process_dict.items():
-                print("process: " + str(key))
-                
-                for packet in val[1]:
-                    print("arrival time: " + str(packet.arrival_time))
+            self.server_busy = False 
 
-                print()
 
-            print()"""
+
+
 
 
             #queue for current process
@@ -94,7 +98,16 @@ class Server_Process(object):
             print("queue emptied for process: " + str(i))"""
 
 
-            self.server_busy = False 
+
+            """for key, val in self.process_dict.items():
+                print("process: " + str(key))
+                
+                for packet in val[1]:
+                    print("arrival time: " + str(packet.arrival_time))
+
+                print()
+
+            print()"""
                 
 
 
@@ -106,10 +119,9 @@ class Arrival_Process(object):
             self.arrival_rate = arrival_rate
             self.server_process = server_process
             self.packet_number = 0
-            #self.arrival_count = [0]*30
-            #self.arrival_dict = {}
+  
 
-            for i in range(0, 30):
+            for i in range(0, 5):
                 self.action = env.process(self.run(i))
                 self.server_process.process_dict[i][0] = self.action
 
@@ -146,6 +158,20 @@ class Arrival_Process(object):
             except simpy.Interrupt:
                 print("process " + str(i) + " has a collision, need to resend packet.")
                 print()
+
+                """retransmit = random.randint(0, 1)
+
+                #50% chance of true
+                if retransmit == 1:
+                    new_packet = Packet(self.packet_number,arrival_time)
+                    
+                    #add to queue again
+                    if not self.server_process.process_dict[i][1]:
+                        self.server_process.process_dict[i][1] = [new_packet]
+                    else:
+                        self.server_process.process_dict[i][1].append(new_packet)"""
+
+
 
 
 
