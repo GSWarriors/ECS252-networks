@@ -6,6 +6,7 @@ import simpy
 import random
 import time 
 import math
+import threading
 
 
 class G:
@@ -24,9 +25,10 @@ class Server_Process(object):
             self.env = env
             self.process_dict = {}
             self.server_busy = False 
+            self.retransmitting = False 
             
-            for i in range(0, 5):
-                self.process_dict[i] = [None, []]
+            for i in range(0, 10):
+                self.process_dict[i] = [None, [], self.retransmitting]
 
             self.called_before = True
             #run the server here 
@@ -56,45 +58,33 @@ class Server_Process(object):
                     packet = curr_queue.pop(0)
                     print("popped packet from process: " + str(key))
                     print("packet arrived at: " + str(packet.arrival_time))
-                    interrupt_list.append((val[0], packet))
+                    interrupt_list.append((key, val[0], packet))
                     
             print()
 
+          
+
+            #interrupt the processes that have packets that were dequeued 
             if len(interrupt_list) >= 2:
                 print("interrupt list: " + str(interrupt_list))
+
                 for i in range(0, len(interrupt_list)):
-                    interrupt_list[i][0].interrupt()
+                    curr_process = interrupt_list[i][0]
+                    
+                    while self.process_dict[curr_process][2] == True:
+                        print("already retransmitting, wait")
+                        yield self.env.timeout(1)
+
+                    self.process_dict[curr_process][2] = True
+                    interrupt_list[i][1].interrupt()
+                
             else:
                 #yield self.env.timeout(random.expovariate(G.MU))
                 print("packet serviced")
             
             self.server_busy = False
-    
-        
-    """def check_processes(self, process_freq):
-
-        check_val = 1
-        can_interrupt = True
-
-        for val in process_freq.values():
-            if val != check_val:
-                can_interrupt = False 
-        
-        #if can_interrupt:
-        #    print("we can interrupt these processes")
-        #else:
-        #    print("can't interrupt processes. they have at least one of the same process listed twice")
-        
-        return can_interrupt"""
 
 
-
-
-
-    #queue for current process
-  
-
-                
 
 
 class Arrival_Process(object):
@@ -107,7 +97,7 @@ class Arrival_Process(object):
             self.packet_number = 0
   
 
-            for i in range(0, 5):
+            for i in range(0, 10):
                 self.action = env.process(self.run(i))
                 self.server_process.process_dict[i][0] = self.action
 
@@ -144,6 +134,7 @@ class Arrival_Process(object):
 
             except simpy.Interrupt:
 
+                curr_process = self.server_process.process_dict[i]
                 retransmit = random.randint(0, 1)
 
                 #retransmit packet for each process with a 50% probability by adding to the queue again 
@@ -156,10 +147,12 @@ class Arrival_Process(object):
                     + str(arrival_time))
                     
                     #add to queue again
-                    if not self.server_process.process_dict[i][1]:
-                        self.server_process.process_dict[i][1] = [new_packet]
+                    curr_queue = curr_process[1]
+
+                    if not curr_queue:
+                        curr_queue = [new_packet]
                     else:
-                        self.server_process.process_dict[i][1].append(new_packet)
+                        curr_queue.append(new_packet)
                 
                     #check whether server busy to start transmitting packets
                     if self.server_process.server_busy == False:
@@ -178,17 +171,18 @@ class Arrival_Process(object):
                     print("multiple collision packet for process: " + str(i) + " has been resent with arrival time: " 
                     + str(arrival_time))
                     
+                    curr_queue = curr_process[1]
                     #add to queue again
-                    if not self.server_process.process_dict[i][1]:
-                        self.server_process.process_dict[i][1] = [new_packet]
+                    if not curr_queue:
+                        curr_queue = [new_packet]
                     else:
-                        self.server_process.process_dict[i][1].append(new_packet)
+                        curr_queue.append(new_packet)
                 
                     #check whether server busy to start transmitting packets
                     if self.server_process.server_busy == False:
                         self.server_process.server_busy = True
 
-                        
+                curr_process[2] = False 
 
 
 
