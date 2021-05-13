@@ -25,7 +25,7 @@ class Server_Process(object):
             self.process_dict = {}
             self.server_busy = False 
             
-            for i in range(0, 30):
+            for i in range(0, 5):
                 self.process_dict[i] = [None, []]
 
             self.called_before = True
@@ -59,31 +59,19 @@ class Server_Process(object):
                     interrupt_list.append((val[0], packet))
                     
             print()
-            print("the interrupt list: " + str(interrupt_list))
-
-            if len(interrupt_list) >= 2:
-                print("more than 2 packets dequeued, collision")
-
-
-            self.server_busy = False
-
-            """
-
-            #check for collision and remove that packet from queues of both processes
-            #if we actually have a collision
-            process_freq = {}
 
             if len(interrupt_list) >= 2:
                 print("interrupt list: " + str(interrupt_list))
-
-
+                for i in range(0, len(interrupt_list)):
+                    interrupt_list[i][0].interrupt()
+            else:
+                #yield self.env.timeout(random.expovariate(G.MU))
+                print("packet serviced")
             
-            self.server_busy = False """
-
+            self.server_busy = False
     
-
         
-    def check_processes(self, process_freq):
+    """def check_processes(self, process_freq):
 
         check_val = 1
         can_interrupt = True
@@ -97,37 +85,14 @@ class Server_Process(object):
         #else:
         #    print("can't interrupt processes. they have at least one of the same process listed twice")
         
-        return can_interrupt
+        return can_interrupt"""
 
 
 
 
 
     #queue for current process
-    """while len(queue) > 0:
-
-        packet = queue.pop(0)
-        print("the packet number: " + str(packet.identifier))
-        print("the arrival time: " + str(packet.arrival_time))
-        print()
-        
-        yield self.env.timeout(random.expovariate(G.MU))
-
-    #we have emptied the queue for this process
-    server_busy = False
-    print("queue emptied for process: " + str(i))"""
-
-
-
-    """for key, val in self.process_dict.items():
-        print("process: " + str(key))
-        
-        for packet in val[1]:
-            print("arrival time: " + str(packet.arrival_time))
-
-        print()
-
-    print()"""
+  
 
                 
 
@@ -142,11 +107,12 @@ class Arrival_Process(object):
             self.packet_number = 0
   
 
-            for i in range(0, 30):
+            for i in range(0, 5):
                 self.action = env.process(self.run(i))
                 self.server_process.process_dict[i][0] = self.action
 
         self.called_before = True
+
 
 
 
@@ -199,6 +165,7 @@ class Arrival_Process(object):
                     if self.server_process.server_busy == False:
                         self.server_process.server_busy = True
                 else:
+
                     #wait for next time slot to retransmit if not in threshold value
                     while retransmit != 1:
                         yield self.env.timeout(1)
