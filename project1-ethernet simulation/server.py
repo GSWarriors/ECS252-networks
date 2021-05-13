@@ -25,7 +25,7 @@ class Server_Process(object):
             self.process_dict = {}
             self.server_busy = False 
             
-            for i in range(0, 5):
+            for i in range(0, 30):
                 self.process_dict[i] = [None, []]
 
             self.called_before = True
@@ -45,28 +45,29 @@ class Server_Process(object):
 
             print("current time: " + str(self.env.now))
 
-
             interrupt_list = []
-            #check here if any of the process queues have a packet that just arrived in the last slot 
-            for key, val in self.process_dict.items():
 
+            for key, val in self.process_dict.items():
                 print("process: " + str(key))
 
-                for packet in val[1]:
-                    if self.env.now - packet.arrival_time <= 1:
-                        print("arrival time: " + str(packet.arrival_time))
+                #checking the queue. pop from the queues
+                curr_queue = val[1]
+                if len(curr_queue) > 0: 
+                    packet = curr_queue.pop(0)
+                    print("popped packet from process: " + str(key))
+                    print("packet arrived at: " + str(packet.arrival_time))
+                    interrupt_list.append((val[0], packet))
+                    
+            print()
+            print("the interrupt list: " + str(interrupt_list))
 
-                        if key not in interrupt_list:
-                            interrupt_list.append((key, val[0]))
-                            #print("a packet in process " + str(key) + " has just arrived, servicing.")
-                            #print("the arrival time: " + str(packet.arrival_time))
-                            #print()
-                        #else:
-                            #print("packet from same process " + str(key) + " has arrived.")
-                print()
-             
+            if len(interrupt_list) >= 2:
+                print("more than 2 packets dequeued, collision")
 
-            
+
+            self.server_busy = False
+
+            """
 
             #check for collision and remove that packet from queues of both processes
             #if we actually have a collision
@@ -75,29 +76,9 @@ class Server_Process(object):
             if len(interrupt_list) >= 2:
                 print("interrupt list: " + str(interrupt_list))
 
-                for index, tuple in enumerate(interrupt_list):
-                    key = tuple[0]
-                    reference = tuple[1]
-                    
-                    if key not in process_freq:
-                        process_freq[key] = 1
-                    else:
-                        process_freq[key] += 1
-            
-                can_interrupt = self.check_processes(process_freq)
-
-
-
-                if can_interrupt:
-                    for i in range(0, len(interrupt_list)):
-                        curr_queue = self.process_dict[interrupt_list[i][0]][1]
-                        removed_packet = curr_queue.pop()
-                        print("removed packet from process " + str(interrupt_list[i][0]) + " with arrival time: " + 
-                        str(removed_packet.arrival_time))
-                        interrupt_list[i][1].interrupt()
 
             
-            self.server_busy = False 
+            self.server_busy = False """
 
     
 
@@ -161,7 +142,7 @@ class Arrival_Process(object):
             self.packet_number = 0
   
 
-            for i in range(0, 5):
+            for i in range(0, 30):
                 self.action = env.process(self.run(i))
                 self.server_process.process_dict[i][0] = self.action
 
@@ -197,12 +178,11 @@ class Arrival_Process(object):
 
             except simpy.Interrupt:
 
-                #retransmit = random.randint(0, 1)
-                retransmit = random.uniform(0, 1)
+                retransmit = random.randint(0, 1)
 
                 #retransmit packet for each process with a 50% probability by adding to the queue again 
                 #reduce packet number by 1 because retransmitting that packet
-                if retransmit <= 0.8:
+                if retransmit == 1:
                     self.packet_number -= 1
                     arrival_time = self.env.now
                     new_packet = Packet(self.packet_number,arrival_time)
@@ -220,9 +200,9 @@ class Arrival_Process(object):
                         self.server_process.server_busy = True
                 else:
                     #wait for next time slot to retransmit if not in threshold value
-                    while retransmit > 0.8:
+                    while retransmit != 1:
                         yield self.env.timeout(1)
-                        retransmit = random.uniform(0, 1)
+                        retransmit = random.randint(0, 1)
                     
                     #once this loop is broken, then retransmit as usual - make this part into a function
                     self.packet_number -= 1
