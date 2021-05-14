@@ -1,13 +1,10 @@
 
 from socket import *
-import os
 import signal
 import simpy
 import random
 import time 
-import math
-import threading
-
+import sys
 
 class G:
     RANDOM_SEED = 33
@@ -26,9 +23,11 @@ class Server_Process(object):
             self.process_dict = {}
             self.server_busy = False 
             self.retransmitting = False 
+            self.retransmit_dict = {}
             
-            for i in range(0, 10):
+            for i in range(0, 5):
                 self.process_dict[i] = [None, [], self.retransmitting]
+                self.retransmit_dict[i] = []
 
             self.called_before = True
             #run the server here 
@@ -57,6 +56,7 @@ class Server_Process(object):
                 if len(curr_queue) > 0: 
                     packet = curr_queue.pop(0)
                     print("popped packet from process: " + str(key))
+                    print("packet number: " + str(packet.identifier))
                     print("packet arrived at: " + str(packet.arrival_time))
                     interrupt_list.append((key, val[0], packet))
                     
@@ -65,17 +65,30 @@ class Server_Process(object):
           
 
             #interrupt the processes that have packets that were dequeued 
+            #this is the collision handling.
+            #[curr_process][2] tells us whether a retransmission for the current process is already in progress
+
             if len(interrupt_list) >= 2:
                 print("interrupt list: " + str(interrupt_list))
 
                 for i in range(0, len(interrupt_list)):
                     curr_process = interrupt_list[i][0]
+                    packet_num = interrupt_list[i][2].identifier
                     
                     while self.process_dict[curr_process][2] == True:
                         print("already retransmitting, wait")
                         yield self.env.timeout(1)
 
+                    
                     self.process_dict[curr_process][2] = True
+
+                    if len(self.retransmit_dict[curr_process]) > 0:
+                        if packet_num == self.retransmit_dict[curr_process][0][0]:
+                            self.retransmit_dict[curr_process][0][1] += 1
+
+                    else:
+                        self.retransmit_dict[curr_process] = [(packet_num, 0)]
+
                     interrupt_list[i][1].interrupt()
                 
             else:
@@ -88,16 +101,17 @@ class Server_Process(object):
 
 
 class Arrival_Process(object):
-    def __init__(self, env, arrival_rate, server_process, called_before):
+    def __init__(self, env, arrival_rate, server_process, called_before, algo):
 
         if not called_before:
             self.env = env
             self.arrival_rate = arrival_rate
             self.server_process = server_process
             self.packet_number = 0
+            self.algo = algo
   
 
-            for i in range(0, 10):
+            for i in range(0, 5):
                 self.action = env.process(self.run(i))
                 self.server_process.process_dict[i][0] = self.action
 
@@ -134,12 +148,35 @@ class Arrival_Process(object):
 
             except simpy.Interrupt:
 
+                if self.algo == 'beb':
+                    print("algorithm is binary exponential backoff")
+
                 curr_process = self.server_process.process_dict[i]
-                retransmit = random.randint(0, 1)
+
+                print("retransmitting from process: " + str(i) + " the packet: " + str(self.server_process.retransmit_dict[i][0]))
+                print()
+
+
+                #here, use the num times the packet's been retransmitted to det how long to wait 
+                #for bin exp backoff
+
+
+                self.server_process.retransmit_dict[i].pop(0)
+
+                curr_process[2] = False
+
+
+
+
+                """
+                0.5 aloha, and 1/N aloha - put in separate function based on what's called
+
+                #retransmit = random.randint(0, 1)
+                retransmit = random.randint(0, 29)
 
                 #retransmit packet for each process with a 50% probability by adding to the queue again 
                 #reduce packet number by 1 because retransmitting that packet
-                if retransmit == 1:
+                if retransmit == 0:
                     self.packet_number -= 1
                     arrival_time = self.env.now
                     new_packet = Packet(self.packet_number,arrival_time)
@@ -160,9 +197,9 @@ class Arrival_Process(object):
                 else:
 
                     #wait for next time slot to retransmit if not in threshold value
-                    while retransmit != 1:
+                    while retransmit > 0:
                         yield self.env.timeout(1)
-                        retransmit = random.randint(0, 1)
+                        retransmit = random.randint(0, 29)
                     
                     #once this loop is broken, then retransmit as usual - make this part into a function
                     self.packet_number -= 1
@@ -180,10 +217,11 @@ class Arrival_Process(object):
                 
                     #check whether server busy to start transmitting packets
                     if self.server_process.server_busy == False:
-                        self.server_process.server_busy = True
+                        self.server_process.server_busy = True"""
 
-                curr_process[2] = False 
+                
 
+    #def beb_algo():
 
 
 
@@ -199,6 +237,13 @@ class Packet:
 
 def main():
 
+    
+    algo = sys.argv[1]
+
+    print("algo is: " + str(algo))
+    #arrival_rate = sys.argv[2]
+
+
     num_hosts = 30
     called_before = False
     arrival_called_before = False 
@@ -207,7 +252,7 @@ def main():
         env = simpy.Environment()
         server_process = Server_Process(env, called_before)
 
-        arrival = Arrival_Process(env, arrival_rate, server_process, arrival_called_before)
+        arrival = Arrival_Process(env, arrival_rate, server_process, arrival_called_before, algo)
         env.run(until=G.SIM_TIME)
     signal.pause()
 
