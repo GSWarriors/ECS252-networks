@@ -43,7 +43,6 @@ class Server_Process(object):
             print()
 
             yield self.env.timeout(1)
-
             print("current time: " + str(self.env.now))
 
             interrupt_list = []
@@ -91,10 +90,27 @@ class Server_Process(object):
 
                     interrupt_list[i][1].interrupt()
                 
-            else:
+            elif len(interrupt_list) == 1:
                 #yield self.env.timeout(random.expovariate(G.MU))
-                print("packet serviced")
-            
+                #check the process number and the packet number from interrupt list 
+
+                process_num = interrupt_list[0][0]
+                packet_num = interrupt_list[0][2] 
+
+                if len(self.retransmit_dict[process_num]) == 1:
+                    retransmit_packet_num = self.retransmit_dict[process_num][0][0]
+
+                    if packet_num == retransmit_packet_num:
+                        self.retransmit_dict[process_num].pop(0)
+                        print("retransmitted packet: " + str(packet_num) + " has been serviced")
+
+                else:
+                    print("an arriving packet has been serviced")
+
+            else:
+                print("server idle")
+
+
             self.server_busy = False
 
 
@@ -160,8 +176,6 @@ class Arrival_Process(object):
                 #here, use the num times the packet's been retransmitted to det how long to wait 
                 #for bin exp backoff
 
-
-                self.server_process.retransmit_dict[i].pop(0)
 
                 curr_process[2] = False
 
