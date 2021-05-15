@@ -11,7 +11,7 @@ from threading import Event
 
 class G:
     RANDOM_SEED = 33
-    SIM_TIME = 200
+    SIM_TIME = 100
     MU = 1
     LONG_SLEEP_TIMER = 1000000000
 
@@ -99,15 +99,16 @@ class Server_Process(object):
                     if is_waiting == False:
                         
                         if len(self.retransmit_dict[curr_process]) == 3:
-                            if packet_num == self.retransmit_dict[curr_process][0]:
+                            print("in increment")
+                            if packet_num == self.retransmit_dict[curr_process][1]:
                                 self.retransmit_dict[curr_process][2] += 1
-                                print("incrementing")
 
                         else:
                             self.retransmit_dict[curr_process].append(packet_num)
                             self.retransmit_dict[curr_process].append(0)
                         
-                        print("retransmit dict: " + str(self.retransmit_dict[curr_process]))
+                        #print("retransmit dict: " + str(self.retransmit_dict[curr_process]))
+                        print("length: " + str(len(self.retransmit_dict[curr_process])))
 
                         interrupt_list[i][1].interrupt()
 
@@ -190,8 +191,6 @@ class Arrival_Process(object):
                     self.server_process.process_dict[i][1] = [new_packet]
                 else:
                     self.server_process.process_dict[i][1].append(new_packet)
-
-                print("packet added to queue for process: " + str(i))
 
 
                 #check whether server busy to start transmitting packets
@@ -322,7 +321,7 @@ def main():
     called_before = False
     arrival_called_before = False 
 
-    for arrival_rate in [0.02]:
+    for arrival_rate in [0.06]:
         env = simpy.Environment()
         server_process = Server_Process(env, called_before)
 
