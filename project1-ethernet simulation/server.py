@@ -11,7 +11,7 @@ from threading import Event
 
 class G:
     RANDOM_SEED = 33
-    SIM_TIME = 80
+    SIM_TIME = 10000
     MU = 1
     LONG_SLEEP_TIMER = 1000000000
 
@@ -28,7 +28,7 @@ class Server_Process(object):
             self.retransmitting = False 
             self.retransmit_dict = {}
             
-            for i in range(0, 2):
+            for i in range(0, 5):
                 self.process_dict[i] = [None, [], self.retransmitting]
                 self.retransmit_dict[i] = []
 
@@ -51,15 +51,14 @@ class Server_Process(object):
             interrupt_list = []
 
             for key, val in self.process_dict.items():
-                print("process: " + str(key))
+                
 
                 #checking the queue. pop from the queues
+                #only add to interrupt list if we don't have a packet from the current process
+                #currently being retransmitted
                 curr_queue = val[1]
                 if len(curr_queue) > 0: 
-                    packet = curr_queue.pop(0)
-                    print("popped packet from process: " + str(key))
-                    print("packet number: " + str(packet.identifier))
-                    #print("packet arrived at: " + str(packet.arrival_time))
+                    packet = curr_queue[0]
                     interrupt_list.append((key, val[0], packet))
                     
             print()
@@ -78,7 +77,7 @@ class Server_Process(object):
                     packet_num = interrupt_list[i][2].identifier
                     
                     while self.process_dict[curr_process][2] == True:
-                        print("already retransmitting, wait")
+                        #print("already retransmitting, wait")
                         yield self.env.timeout(1)
 
                     
@@ -93,6 +92,7 @@ class Server_Process(object):
 
                     interrupt_list[i][1].interrupt()
                 
+
             elif len(interrupt_list) == 1:
                 #yield self.env.timeout(random.expovariate(G.MU))
                 #check the process number and the packet number from interrupt list 
@@ -110,6 +110,12 @@ class Server_Process(object):
 
                 else:
                     print("an arriving packet has been serviced")
+                
+                 
+                popped_packet = self.process_dict[process_num][1].pop(0)
+                print("removed packet from process: " + str(process_num))
+                print("packet number: " + str(popped_packet.identifier))
+                #print("packet arrived at: " + str(packet.arrival_time))
 
             else:
                 print("server idle")
@@ -134,7 +140,7 @@ class Arrival_Process(object):
             self.algo = algo
   
 
-            for i in range(0, 2):
+            for i in range(0, 5):
                 self.action = env.process(self.run(i))
                 self.server_process.process_dict[i][0] = self.action
 
@@ -171,12 +177,14 @@ class Arrival_Process(object):
             except simpy.Interrupt:
 
                 curr_process = self.server_process.process_dict[i]
-            
+                
 
                 if self.algo == 'beb':
-                    print("algorithm is binary exponential backoff")
+                    
                     delay_slots = -1
                     #self.beb_algo(i, curr_process)
+                    
+                    #testing to see if comes here
 
                     n = self.server_process.retransmit_dict[i][1]
                     print("n is " + str(n))
@@ -186,7 +194,9 @@ class Arrival_Process(object):
                         print("retransmitting from process: " + str(i) + " the packet: " + str(self.server_process.retransmit_dict[i][0]) 
                         + " right away.")                        
                     else:
-                        delay_slots = random.randint(0, pow(2, n - 1))
+
+                        k = min(n, 11)
+                        delay_slots = random.randint(0, pow(2, k - 1))
                         print("retransmitting from process: " + str(i) + " the packet: " + str(self.server_process.retransmit_dict[i][0]) 
                         + " after: " + str(delay_slots) + " delay slots")
                         
@@ -194,7 +204,7 @@ class Arrival_Process(object):
 
                     #add packet with same number to queue again
 
-                    self.packet_number = self.server_process.retransmit_dict[i][0]
+                    """self.packet_number = self.server_process.retransmit_dict[i][0]
                     arrival_time = self.env.now
                     retransmit_packet = Packet(self.packet_number,arrival_time)
                     
@@ -204,12 +214,13 @@ class Arrival_Process(object):
                     if not curr_queue:
                         curr_queue = [retransmit_packet]
                     else:
-                        curr_queue.append(retransmit_packet)
+                        curr_queue.append(retransmit_packet)"""
                 
                     #check whether server busy to start transmitting packets
                     if self.server_process.server_busy == False:
                         self.server_process.server_busy = True
-                                          
+
+                                
                    
                 #we are done with the current retransmission attempt
                 curr_process[2] = False
@@ -271,42 +282,6 @@ class Arrival_Process(object):
 
 
 
-    #here, use the num times the packet's been retransmitted to det how long to wait 
-    #for bin exp backoff. a random number between 0 and 2^n - 1 where n is number of retransmits done.
-    #doesn't work in a function for some reason
-    """def beb_algo(self, i, curr_process):
-    
-        print("RUNNING beb")
-
-        n = self.server_process.retransmit_dict[i][0][1]
-        print("n is " + str(n))
-
-        delay_slots = random.randint(0, pow(2, n-1))
-        print("number of delay slots chosen: " + str(delay_slots))
-        yield self.env.timeout(delay_slots)
-
-        #add packet with same number to queue again
-
-        self.packet_number = self.server_process.retransmit_dict[i][0][0]
-        arrival_time = self.env.now
-        retransmit_packet = Packet(self.packet_number,arrival_time)
-        print("retransmitting from process: " + str(i) + " the packet: " + str(self.server_process.retransmit_dict[i][0]))
-               
-        #add to queue again
-        curr_queue = curr_process[1]
-
-        if not curr_queue:
-            curr_queue = [retransmit_packet]
-        else:
-            curr_queue.append(retransmit_packet)
-    
-        #check whether server busy to start transmitting packets
-        if self.server_process.server_busy == False:
-            self.server_process.server_busy = True"""
-    
-
-   
-
 
 
 class Packet:
@@ -329,7 +304,7 @@ def main():
     called_before = False
     arrival_called_before = False 
 
-    for arrival_rate in [0.5]:
+    for arrival_rate in [0.03]:
         env = simpy.Environment()
         server_process = Server_Process(env, called_before)
 
@@ -340,3 +315,41 @@ def main():
 
 
 main()
+
+
+
+#here, use the num times the packet's been retransmitted to det how long to wait 
+#for bin exp backoff. a random number between 0 and 2^n - 1 where n is number of retransmits done.
+#doesn't work in a function for some reason
+"""def beb_algo(self, i, curr_process):
+
+    print("RUNNING beb")
+
+    n = self.server_process.retransmit_dict[i][0][1]
+    print("n is " + str(n))
+
+    delay_slots = random.randint(0, pow(2, n-1))
+    print("number of delay slots chosen: " + str(delay_slots))
+    yield self.env.timeout(delay_slots)
+
+    #add packet with same number to queue again
+
+    self.packet_number = self.server_process.retransmit_dict[i][0][0]
+    arrival_time = self.env.now
+    retransmit_packet = Packet(self.packet_number,arrival_time)
+    print("retransmitting from process: " + str(i) + " the packet: " + str(self.server_process.retransmit_dict[i][0]))
+            
+    #add to queue again
+    curr_queue = curr_process[1]
+
+    if not curr_queue:
+        curr_queue = [retransmit_packet]
+    else:
+        curr_queue.append(retransmit_packet)
+
+    #check whether server busy to start transmitting packets
+    if self.server_process.server_busy == False:
+        self.server_process.server_busy = True"""
+
+
+
