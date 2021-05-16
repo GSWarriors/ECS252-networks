@@ -10,7 +10,7 @@ from threading import Event
 
 class G:
     RANDOM_SEED = 33
-    SIM_TIME = 100
+    SIM_TIME = 30
     MU = 1
     LONG_SLEEP_TIMER = 1000000000
 
@@ -26,6 +26,7 @@ class Server_Process(object):
             self.server_busy = False 
             self.retransmitting = False 
             self.retransmit_dict = {}
+            self.total_transmissions = 0
             
             for i in range(0, 10):
                 self.process_dict[i] = [None, [], self.retransmitting]
@@ -52,6 +53,10 @@ class Server_Process(object):
             for key, val in self.process_dict.items():
                 #checking the queue. add head to interrupt list
                 curr_queue = val[1]
+
+                print("queue for process " + str(key) + ": " + str(curr_queue))
+                print()
+
                 if len(curr_queue) > 0: 
                     packet = curr_queue[0]
 
@@ -100,14 +105,13 @@ class Server_Process(object):
                             self.retransmit_dict[process_num][1] += 1
                         
                         process_id.interrupt()
-
+                        
                     else:
                         self.retransmit_dict[process_num].append(packet_num)
                         self.retransmit_dict[process_num].append(0)
                         print("added to retransmit dict: " + str(self.retransmit_dict[process_num]))
                         process_id.interrupt()
-    
-
+                        
 
             elif not_waiting_count == 1:
                 #check the process number and the packet number from interrupt list 
@@ -128,12 +132,14 @@ class Server_Process(object):
                 popped_packet = curr_queue.pop(0)
                 print("removed packet from process: " + str(curr_not_waiting))
                 print("packet number: " + str(popped_packet.identifier))
+                self.total_transmissions += 1
 
             else:
                 print("server idle")
 
-
             self.server_busy = False
+
+
 
 
 
@@ -302,9 +308,14 @@ def main():
     for arrival_rate in [0.1]:
         env = simpy.Environment()
         server_process = Server_Process(env, called_before)
-
         arrival = Arrival_Process(env, arrival_rate, server_process, arrival_called_before, algo)
         env.run(until=G.SIM_TIME)
+
+
+        print("total transmissions: " + str(server_process.total_transmissions))
+        throughput = server_process.total_transmissions/G.SIM_TIME
+        print("the throughput: " + str(throughput))
+
     signal.pause()
 
 
