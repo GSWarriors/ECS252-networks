@@ -10,7 +10,7 @@ from threading import Event
 
 class G:
     RANDOM_SEED = 33
-    SIM_TIME = 80
+    SIM_TIME = 250
     MU = 1
     LONG_SLEEP_TIMER = 1000000000
 
@@ -27,7 +27,7 @@ class Server_Process(object):
             self.retransmitting = False 
             self.retransmit_dict = {}
             
-            for i in range(0, 3):
+            for i in range(0, 7):
                 self.process_dict[i] = [None, [], self.retransmitting]
                 self.retransmit_dict[i] = [False]
 
@@ -70,7 +70,7 @@ class Server_Process(object):
 
 
             print("number of processes waiting: " + str(not_waiting_count))
-            if len(interrupt_list) == 3:
+            if len(interrupt_list) >= 3:
                 print("the interrupt list: " + str(interrupt_list))
                 print()
 
@@ -83,18 +83,24 @@ class Server_Process(object):
             if not_waiting_count > 1:
 
                 for i in range(0, len(interrupt_list)):
-                   
+
+                    curr_process = interrupt_list[i][0]
+                    packet_num = interrupt_list[0][2] 
+                    #flag to check whether a process in the interrupt list is in the process of being retransmitted  
+                    is_waiting = self.retransmit_dict[i][0]
+
+
+
+                    #flag to check whether same process is being checked in interrupt list already
+                    #busy waiting
                     while self.process_dict[curr_process][2] == True:
-                        print("already retransmitting, wait")
+                        #print("already retransmitting, wait")
                         yield self.env.timeout(1)
 
                     self.process_dict[curr_process][2] = True
 
-                    curr_process = interrupt_list[i][0]
-                    packet_num = interrupt_list[0][2] 
-                    is_waiting = self.retransmit_dict[i][0]
-                    
-
+                   
+                
                     #process ready to transmit but collision
                     #two cases, process has come here before or process is coming for first time
                     if is_waiting == False:
@@ -158,7 +164,7 @@ class Arrival_Process(object):
             self.algo = algo
   
 
-            for i in range(0, 3):
+            for i in range(0, 7):
                 self.action = env.process(self.run(i))
                 self.server_process.process_dict[i][0] = self.action
 
@@ -198,10 +204,10 @@ class Arrival_Process(object):
                 self.server_process.retransmit_dict[i][0] = True
 
                 curr_process = self.server_process.process_dict[i]
+
                 if self.algo == 'beb':
                     
                     delay_slots = -1
-    
                     n = self.server_process.retransmit_dict[i][2]
                     print("n is " + str(n))
 
@@ -305,7 +311,7 @@ def main():
     called_before = False
     arrival_called_before = False 
 
-    for arrival_rate in [0.09]:
+    for arrival_rate in [0.03]:
         env = simpy.Environment()
         server_process = Server_Process(env, called_before)
 
