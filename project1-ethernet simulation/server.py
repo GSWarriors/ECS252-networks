@@ -72,6 +72,7 @@ class Server_Process(object):
             print("number of processes waiting: " + str(not_waiting_count))
             if len(interrupt_list) == 3:
                 print("the interrupt list: " + str(interrupt_list))
+                print()
 
 
 
@@ -99,7 +100,6 @@ class Server_Process(object):
                     if is_waiting == False:
                         
                         if len(self.retransmit_dict[curr_process]) == 3:
-                            print("in increment")
                             if packet_num == self.retransmit_dict[curr_process][1]:
                                 self.retransmit_dict[curr_process][2] += 1
 
@@ -115,25 +115,23 @@ class Server_Process(object):
                     #print("waiting for process to retransmit before interrupting again")
 
 
-                   
-                
-
             elif not_waiting_count == 1:
                 #check the process number and the packet number from interrupt list 
                 curr_not_waiting = processes_not_waiting[0]
-                packet = self.process_dict[curr_not_waiting][1] 
+                curr_queue = self.process_dict[curr_not_waiting][1] 
 
-                """if len(self.retransmit_dict[process_num]) == 1:
-                    retransmit_packet_num = self.retransmit_dict[process_num][0]
-                    if packet_num == retransmit_packet_num:
-                        self.retransmit_dict[process_num].pop()
-                        self.retransmit_dict[process_num].pop()
-                        print("retransmitted packet: " + str(packet_num) + " has been serviced")
-                else:
-                    print("an arriving packet has been serviced")"""
+
+                #remove the process/packet from retransmit dict
+                #look at this tomorrow, might be incorrect
+                if len(self.retransmit_dict[curr_not_waiting]) == 3:
+                    retransmit_packet = self.retransmit_dict[curr_not_waiting][1]
+
+                    if curr_queue[0] == retransmit_packet:
+                        self.retransmit_dict[curr_not_waiting] = [False]
                 
+
                  
-                popped_packet = packet.pop(0)
+                popped_packet = curr_queue.pop(0)
                 print("removed packet from process: " + str(curr_not_waiting))
                 print("packet number: " + str(popped_packet.identifier))
 
@@ -209,14 +207,12 @@ class Arrival_Process(object):
 
                     if n == 0:
                         delay_slots = 0
-                        print("retransmitting from process: " + str(i) + " the packet: " + str(self.server_process.retransmit_dict[i]) 
-                        + " right away.")                        
+                        print("retransmitting from process: " + str(i) + " right away.")                        
                     else:
 
                         k = min(n, 11)
                         delay_slots = random.randint(0, pow(2, k - 1))
-                        print("retransmitting from process: " + str(i) + " the packet: " + str(self.server_process.retransmit_dict[i]) 
-                        + " after: " + str(delay_slots) + " delay slots")
+                        print("retransmitting from process: " + str(i) + " after: " + str(delay_slots) + " delay slots")
                         
                         yield self.env.timeout(delay_slots)
 
