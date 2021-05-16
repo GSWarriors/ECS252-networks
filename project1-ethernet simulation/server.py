@@ -10,7 +10,7 @@ from threading import Event
 
 class G:
     RANDOM_SEED = 33
-    SIM_TIME = 300
+    SIM_TIME = 10000
     MU = 1
     LONG_SLEEP_TIMER = 1000000000
 
@@ -27,7 +27,7 @@ class Server_Process(object):
             self.retransmitting = False 
             self.retransmit_dict = {}
             
-            for i in range(0, 5):
+            for i in range(0, 15):
                 self.process_dict[i] = [None, [], self.retransmitting]
                 self.retransmit_dict[i] = [False]
 
@@ -113,12 +113,9 @@ class Server_Process(object):
                             self.retransmit_dict[curr_process].append(packet_num)
                             self.retransmit_dict[curr_process].append(0)
                         
-                        #print("length: " + str(len(self.retransmit_dict[curr_process])))
 
                         interrupt_list[i][1].interrupt()
-
         
-                    #print("waiting for process to retransmit before interrupting again")
 
 
             elif not_waiting_count == 1:
@@ -164,7 +161,7 @@ class Arrival_Process(object):
             self.algo = algo
   
 
-            for i in range(0, 5):
+            for i in range(0, 15):
                 self.action = env.process(self.run(i))
                 self.server_process.process_dict[i][0] = self.action
 
@@ -212,15 +209,18 @@ class Arrival_Process(object):
 
                     if n == 0:
                         delay_slots = 0
-                        print("retransmitting from process: " + str(i) + " right away.")
+                        print("retransmitting from process: " + str(i) + " in next time slot.")
+                        yield self.env.timeout(1)
+                        #print("current env time for n = 0: " + str(self.env.now))
+                    
                         
 
                     else:
                         k = min(n, 11)
-                        delay_slots = random.randint(0, pow(2, k))
+                        delay_slots = random.randint(1, pow(2, k))
                         print("retransmitting from process: " + str(i) + " after: " + str(delay_slots) + " delay slots")
-                    
                         yield self.env.timeout(delay_slots)
+                        #print("current env time: " + str(self.env.now))
 
 
                 
@@ -311,7 +311,7 @@ def main():
     called_before = False
     arrival_called_before = False 
 
-    for arrival_rate in [0.05]:
+    for arrival_rate in [0.03]:
         env = simpy.Environment()
         server_process = Server_Process(env, called_before)
 
