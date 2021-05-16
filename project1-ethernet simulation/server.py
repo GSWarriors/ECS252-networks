@@ -1,4 +1,3 @@
-
 from socket import *
 import signal
 import simpy
@@ -11,7 +10,7 @@ from threading import Event
 
 class G:
     RANDOM_SEED = 33
-    SIM_TIME = 100
+    SIM_TIME = 80
     MU = 1
     LONG_SLEEP_TIMER = 1000000000
 
@@ -28,7 +27,7 @@ class Server_Process(object):
             self.retransmitting = False 
             self.retransmit_dict = {}
             
-            for i in range(0, 2):
+            for i in range(0, 3):
                 self.process_dict[i] = [None, [], self.retransmitting]
                 self.retransmit_dict[i] = [False]
 
@@ -51,11 +50,7 @@ class Server_Process(object):
             interrupt_list = []
 
             for key, val in self.process_dict.items():
-                
-
-                #checking the queue. pop from the queues
-                #only add to interrupt list if we don't have a packet from the current process
-                #currently being retransmitted
+                #checking the queue. add head to interrupt list
                 curr_queue = val[1]
                 if len(curr_queue) > 0: 
                     packet = curr_queue[0]
@@ -66,19 +61,24 @@ class Server_Process(object):
           
             #check number of processes not waiting
             not_waiting_count = 0
+            processes_not_waiting = []
             for j in range(0, len(interrupt_list)):
                 curr_process = interrupt_list[j][0]
                 if self.retransmit_dict[curr_process][0] == False:
                     not_waiting_count += 1
+                    processes_not_waiting.append(curr_process)
+
 
             print("number of processes waiting: " + str(not_waiting_count))
-            print("the interrupt list: " + str(interrupt_list))
+            if len(interrupt_list) == 3:
+                print("the interrupt list: " + str(interrupt_list))
+
+
+
 
 
             #interrupt the processes that have packets that collided.
             #[curr_process][2] tells us whether a retransmission for the current process is already in progress
-            
-
             if not_waiting_count > 1:
 
                 for i in range(0, len(interrupt_list)):
@@ -107,8 +107,7 @@ class Server_Process(object):
                             self.retransmit_dict[curr_process].append(packet_num)
                             self.retransmit_dict[curr_process].append(0)
                         
-                        #print("retransmit dict: " + str(self.retransmit_dict[curr_process]))
-                        print("length: " + str(len(self.retransmit_dict[curr_process])))
+                        #print("length: " + str(len(self.retransmit_dict[curr_process])))
 
                         interrupt_list[i][1].interrupt()
 
@@ -120,28 +119,22 @@ class Server_Process(object):
                 
 
             elif not_waiting_count == 1:
-                #yield self.env.timeout(random.expovariate(G.MU))
                 #check the process number and the packet number from interrupt list 
-
-                process_num = interrupt_list[0][0]
-                packet_num = interrupt_list[0][2] 
-
-                print("not waiting count is 1")
+                curr_not_waiting = processes_not_waiting[0]
+                packet = self.process_dict[curr_not_waiting][1] 
 
                 """if len(self.retransmit_dict[process_num]) == 1:
                     retransmit_packet_num = self.retransmit_dict[process_num][0]
-
                     if packet_num == retransmit_packet_num:
                         self.retransmit_dict[process_num].pop()
                         self.retransmit_dict[process_num].pop()
                         print("retransmitted packet: " + str(packet_num) + " has been serviced")
-
                 else:
                     print("an arriving packet has been serviced")"""
                 
                  
-                popped_packet = self.process_dict[process_num][1].pop(0)
-                print("removed packet from process: " + str(process_num))
+                popped_packet = packet.pop(0)
+                print("removed packet from process: " + str(curr_not_waiting))
                 print("packet number: " + str(popped_packet.identifier))
 
             else:
@@ -167,7 +160,7 @@ class Arrival_Process(object):
             self.algo = algo
   
 
-            for i in range(0, 2):
+            for i in range(0, 3):
                 self.action = env.process(self.run(i))
                 self.server_process.process_dict[i][0] = self.action
 
@@ -245,11 +238,8 @@ class Arrival_Process(object):
 
                 """
                 0.5 aloha, and 1/N aloha - put in separate function based on what's called
-
                 #retransmit = random.randint(0, 1)
                 retransmit = random.randint(0, 29)
-
-
                 #retransmit packet for each process with a 50% probability by adding to the queue again 
                 #reduce packet number by 1 because retransmitting that packet
                 if retransmit == 0:
@@ -261,7 +251,6 @@ class Arrival_Process(object):
                     
                     #add to queue again
                     curr_queue = curr_process[1]
-
                     if not curr_queue:
                         curr_queue = [new_packet]
                     else:
@@ -271,7 +260,6 @@ class Arrival_Process(object):
                     if self.server_process.server_busy == False:
                         self.server_process.server_busy = True
                 else:
-
                     #wait for next time slot to retransmit if not in threshold value
                     while retransmit > 0:
                         yield self.env.timeout(1)
@@ -321,7 +309,7 @@ def main():
     called_before = False
     arrival_called_before = False 
 
-    for arrival_rate in [0.06]:
+    for arrival_rate in [0.09]:
         env = simpy.Environment()
         server_process = Server_Process(env, called_before)
 
@@ -332,41 +320,3 @@ def main():
 
 
 main()
-
-
-
-#here, use the num times the packet's been retransmitted to det how long to wait 
-#for bin exp backoff. a random number between 0 and 2^n - 1 where n is number of retransmits done.
-#doesn't work in a function for some reason
-"""def beb_algo(self, i, curr_process):
-
-    print("RUNNING beb")
-
-    n = self.server_process.retransmit_dict[i][0][1]
-    print("n is " + str(n))
-
-    delay_slots = random.randint(0, pow(2, n-1))
-    print("number of delay slots chosen: " + str(delay_slots))
-    yield self.env.timeout(delay_slots)
-
-    #add packet with same number to queue again
-
-    self.packet_number = self.server_process.retransmit_dict[i][0][0]
-    arrival_time = self.env.now
-    retransmit_packet = Packet(self.packet_number,arrival_time)
-    print("retransmitting from process: " + str(i) + " the packet: " + str(self.server_process.retransmit_dict[i][0]))
-            
-    #add to queue again
-    curr_queue = curr_process[1]
-
-    if not curr_queue:
-        curr_queue = [retransmit_packet]
-    else:
-        curr_queue.append(retransmit_packet)
-
-    #check whether server busy to start transmitting packets
-    if self.server_process.server_busy == False:
-        self.server_process.server_busy = True"""
-
-
-
